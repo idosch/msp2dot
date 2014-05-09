@@ -20,6 +20,13 @@ Example
 `msp2dot chernobyl.asm malloc`
 ![Alt text](malloc.png "malloc")
 
+Known issues:
+-------------
+1. `&` is replaced by `amp`, since there's an issue with pydot.
+2. 'br' instruction is not currently supported.
+
+Feel free to issue pull request.
+
 Credit:
 -------
 This project is inspired by [Nelson Elhage's](https://github.com/nelhage) [reverse-android](https://github.com/nelhage/reverse-android). His formating of code labels is also employed here.

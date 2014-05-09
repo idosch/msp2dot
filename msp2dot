@@ -93,6 +93,7 @@ def plot_graph(code, outfile):
         elif idx == len(code)-1:
             # Write last block to graph.
             node = pydot.Node(block_name, shape='box', fontname='monospace')
+            block_code.append(line)
             node.set_label(as_html(block_code))
             graph.add_node(node)
         else:

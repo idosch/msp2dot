@@ -1,0 +1,130 @@
+#!/usr/bin/env python2
+import sys
+import re
+import argparse
+import pydot
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("CODE", help="Path to assembly file.", type=str)
+    parser.add_argument("SUBROUTINE", help="Name of subroutine to graph.\
+                                      Graph is written to SUBROUTINE.png",
+                        type=str)
+    args = parser.parse_args()
+
+    code = get_code(args.CODE, args.SUBROUTINE)
+    plot_graph(code, args.SUBROUTINE)
+
+
+def get_code(asm, sub_name):
+    """Return ``sub_name`` code not including header."""
+    infile = open(asm, 'r')
+
+    code = []
+    # Find line where subroutine starts.
+    for line in infile:
+        m = re.match(r'[0-9a-f]*\s<([a-zA-z]*)>', line)
+        if m and m.group(1).startswith(sub_name):
+            break
+
+    # Store subroutine code.
+    for line in infile:
+        m = re.match(r'[0-9a-f]*\s[a-zA-z]*:*', line)
+        if m:
+            break
+        else:
+            code.append(line)
+
+    infile.close()
+    return code
+
+
+def plot_graph(code, outfile):
+    """Plot a graph of ``code`` and save to ``outfile``."""
+    graph = pydot.Dot()
+    # Create a list of instruction we jump to.
+    dst = []
+    for line in code:
+        m = re.search(r'j[nezqclohsgmp]*\s*#0x([a-f0-9]*)\s', line)
+        if m:
+            dst.append(m.group(1))
+
+    block_name = None
+    block_code = []
+    for idx, line in enumerate(code):
+        m = re.match('([0-9a-f]*):', line)
+        if m:
+            inst_loc = m.group(1)
+        else:
+            # Not an instruction.
+            continue
+        m = re.search(r'j[nezqclohsgmp]*\s*#0x([a-f0-9]*)\s', line)
+        if m:
+            # Jump instruction encountered.
+            # Terminate current block and link to block we branch to if true.
+            node = pydot.Node(block_name, shape='box', fontname='monospace')
+            block_code.append(line)
+            node.set_label(as_html(block_code))
+            graph.add_node(node)
+            edge = pydot.Edge(block_name, m.group(1), color='green')
+            graph.add_edge(edge)
+            block_code = []
+        elif not block_code:
+            # New block.
+            if block_name:
+                # This instruction is just after a jump.
+                # Link previous block to this new block unless its a jmp.
+                if 'jmp' not in code[idx-1].split(' '):
+                    edge = pydot.Edge(block_name, inst_loc, color='red')
+                    graph.add_edge(edge)
+            block_name = inst_loc
+            block_code.append(line)
+        elif inst_loc in dst:
+            # Jumping to this instruction.
+            # Terminate previous block and link to this one.
+            node = pydot.Node(block_name, shape='box', fontname='monospace')
+            node.set_label(as_html(block_code))
+            graph.add_node(node)
+            edge = pydot.Edge(block_name, inst_loc, color='black')
+            graph.add_edge(edge)
+            block_name = inst_loc
+            block_code = [line]
+        elif idx == len(code)-1:
+            # Write last block to graph.
+            node = pydot.Node(block_name, shape='box', fontname='monospace')
+            node.set_label(as_html(block_code))
+            graph.add_node(node)
+        else:
+            # Keep adding lines of code to block.
+            block_code.append(line)
+
+    graph.write(outfile+'.png', format='png')
+
+
+def as_html(lines):
+    """Use HTML-like labels."""
+    if not lines:
+        return ""
+
+    out = []
+    out.append('<<table border="0" cellborder="0" align="left">')
+    for line in lines:
+        line = line.replace('&', 'amp')  # & causes problems with dot.
+        if 'call' in line.split():
+            out.append('<tr><td align="left"><font color="blue">')
+        else:
+            out.append('<tr><td align="left">')
+        out.append(line[:-1].replace('\t', ' ').replace('<', '&lt;').replace(
+            '>', '&gt;'))
+        if 'call' in line.split():
+            out.append('</font></td></tr>')
+        else:
+            out.append('</td></tr>')
+    out.append('</table>>')
+    return ''.join(out)
+
+
+if __name__ == '__main__':
+    status = main()
+    sys.exit(status)

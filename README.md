@@ -1,6 +1,6 @@
 msp2dot
 -------
-A script to produce graphs from MSP430 assembly files using pydot. This script is intended for use in [microcorruption ctf](www.microcorruption.com), which is based on the MSP430.
+A script to produce graphs from MSP430 assembly files using pydot. This script is intended for use in [microcorruption ctf](http://www.microcorruption.com), which is based on the MSP430.
 
 Usage:
 ------
